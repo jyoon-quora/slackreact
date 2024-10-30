@@ -3,6 +3,7 @@ import asyncio
 import websockets
 import json
 import logging
+import time
 import traceback
 from collections import defaultdict
 
@@ -69,11 +70,18 @@ class SlackBot:
                     level=logging.ERROR,
                 )
 
-    async def api_call(self, **data: Any) -> Dict[Any, Any]:
+    async def api_call(self, max_num_retries: int = 5, **data: Any) -> Dict[Any, Any]:
         method = data.pop("method")
         data["token"] = self.token
-        async with self.session.post(f"https://slack.com/api/{method}", data=data) as response:
-            return await response.json()
+        num_retries = 0
+        while True:
+            async with self.session.post(f"https://slack.com/api/{method}", data=data) as response:
+                ret = await response.json()
+            if ret.get('error') != 'ratelimited' or num_retries >= max_num_retries:
+                return ret
+            num_retries += 1
+            retry_after = int(response.headers.get('Retry-After', 1))
+            time.sleep(retry_after)
 
     async def paginated_api_call(self, collect_key: str, **data: Any) -> Dict[Any, Any]:
         data["limit"] = 300
