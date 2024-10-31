@@ -3,7 +3,6 @@ import asyncio
 import websockets
 import json
 import logging
-import time
 import traceback
 from collections import defaultdict
 
@@ -81,7 +80,7 @@ class SlackBot:
                 return ret
             num_retries += 1
             retry_after = int(response.headers.get('Retry-After', 1))
-            time.sleep(retry_after)
+            await asyncio.sleep(retry_after)
 
     async def paginated_api_call(self, collect_key: str, **data: Any) -> Dict[Any, Any]:
         data["limit"] = 300
